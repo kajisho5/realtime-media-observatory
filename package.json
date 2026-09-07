@@ -1,0 +1,37 @@
+{
+  "name": "realtime-media-observatory",
+  "version": "0.1.0",
+  "description": "Observability and instrumentation platform for realtime media pipelines (latency, jitter, buffering, drops, XRUN, clock drift, provenance/confidence).",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "realtime-observe": "./dist/cli/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:core-purity": "node ./scripts/check-core-purity.mjs",
+    "cli": "tsx src/cli/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
+  }
+}
