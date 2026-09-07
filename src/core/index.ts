@@ -3,3 +3,5 @@ export * from "./stage.js";
 export * from "./jitter.js";
 export * from "./buffer.js";
 export * from "./counters.js";
+export * from "./rolling.js";
+export * from "./overhead.js";

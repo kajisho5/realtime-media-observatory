@@ -1,3 +1,4 @@
+import { measuredProvenance } from "../model/provenance.js";
 import type { Measurement } from "../model/types.js";
 import { nextId } from "./ids.js";
 
@@ -17,7 +18,7 @@ export class EventCounter {
       name: this.measurementName,
       value: this.count,
       unit: "count",
-      provenance: { kind: "measured", method: "counter", confidence: "high" }
+      provenance: measuredProvenance("counter")
     };
   }
 }

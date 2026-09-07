@@ -44,7 +44,8 @@ for the full implementation plan (priorities P0-P3).
 
 ## Status
 
-Early stage. The current implementation covers the P0 foundation:
+Early stage. The current implementation covers the P0 foundation plus
+part of P1:
 
 - **Common Measurement Model** (`src/model`) — the canonical
   pipeline/stage/measurement/provenance schema, with JSON Schema
@@ -60,10 +61,27 @@ Early stage. The current implementation covers the P0 foundation:
   hardware-free fixtures with known expected latency, used by CI.
 - **CLI** (`realtime-observe`) — runs a synthetic pipeline and prints a
   pipeline-first report, human-readable or `--json`.
+- **Provenance & Confidence Taxonomy** (`src/model/provenance.ts`) — a
+  derived measurement's confidence is bounded by its weakest input; see
+  [`docs/architecture/provenance-confidence.md`](docs/architecture/provenance-confidence.md).
+- **Realtime Metrics Engine** (`src/core/rolling.ts`) — bounded rolling
+  windows for live latency/jitter, trailing drop/XRUN rate, and a
+  self-benchmark for the Core's own recording overhead
+  (`src/core/overhead.ts`).
+- **Clock Drift Detection** (`src/clock/drift.ts`) — least-squares
+  offset/drift-rate estimation from paired timestamp samples, with a
+  documented confidence rule.
+- **Measurement Calibration** (`src/calibration`) — known-delay reference
+  calibration against the Synthetic Harness; see
+  [`docs/architecture/calibration.md`](docs/architecture/calibration.md)
+  for the method, its limits, and current results.
 
-Everything past this point (real Audio/OBS/VST3/WebRTC adapters,
-calibration, dashboard, streaming/Prometheus/OpenTelemetry reporting) is
-tracked as GitHub issues, not yet implemented.
+Not yet implemented (tracked as GitHub issues): real Audio/OBS/VST3/AU/
+WebRTC adapters, hardware-backed calibration, dashboard, streaming/
+Prometheus/OpenTelemetry reporting. The Audio Adapter (#11) and Real
+Hardware Validation (#15) specifically require real audio/camera/display
+hardware to build and verify against, which this environment does not
+have — see the linked issues for what's needed to pick them up.
 
 ## Quickstart
 

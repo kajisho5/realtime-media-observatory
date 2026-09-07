@@ -1,3 +1,4 @@
+import { deriveProvenance } from "../model/provenance.js";
 import type { Measurement } from "../model/types.js";
 import { nextId } from "./ids.js";
 
@@ -9,12 +10,16 @@ export function computeJitterMs(samplesMs: readonly number[]): number {
   return Math.sqrt(variance);
 }
 
-export function jitterMeasurement(samplesMs: readonly number[], sourceIds: readonly string[] = []): Measurement {
+export function jitterMeasurement(sources: readonly Measurement[]): Measurement {
+  // Jitter's own confidence reflects statistical sample size, not the
+  // confidence of its inputs' values — a jitter computed from too few
+  // samples is low-confidence even if every sample was itself high-confidence.
+  const statisticalConfidence = sources.length >= 2 ? "high" : "low";
   return {
     id: nextId("measurement"),
     name: "jitter_ms",
-    value: computeJitterMs(samplesMs),
+    value: computeJitterMs(sources.map((m) => m.value)),
     unit: "ms",
-    provenance: { kind: "derived", method: "timestamp", confidence: samplesMs.length >= 2 ? "high" : "low", sourceIds }
+    provenance: deriveProvenance("derived", "timestamp", sources, statisticalConfidence)
   };
 }

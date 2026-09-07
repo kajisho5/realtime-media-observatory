@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BufferTracker, EventCounter, StageRecorder, computeJitterMs, resetIdCounter, totalLatency, worstOf } from "../src/core/index.js";
+import { BufferTracker, EventCounter, StageRecorder, computeJitterMs, jitterMeasurement, resetIdCounter, totalLatency } from "../src/core/index.js";
+import { worstConfidence } from "../src/model/provenance.js";
 import type { Timestamp } from "../src/clock/types.js";
 
 const clock = { domain: "monotonic", id: "test" } as const;
@@ -46,11 +47,15 @@ describe("totalLatency", () => {
   });
 });
 
-describe("worstOf", () => {
+describe("worstConfidence", () => {
   it("returns the lowest confidence among inputs", () => {
-    expect(worstOf(["high", "medium", "high"])).toBe("medium");
-    expect(worstOf(["low", "high"])).toBe("low");
-    expect(worstOf(["high", "high"])).toBe("high");
+    expect(worstConfidence(["high", "medium", "high"])).toBe("medium");
+    expect(worstConfidence(["low", "high"])).toBe("low");
+    expect(worstConfidence(["high", "high"])).toBe("high");
+  });
+
+  it("treats an empty input as low (no basis for trust)", () => {
+    expect(worstConfidence([])).toBe("low");
   });
 });
 
@@ -63,6 +68,27 @@ describe("computeJitterMs", () => {
   it("computes sample standard deviation for known values", () => {
     // mean=5, deviations: -3,-1,1,3 -> squared: 9,1,1,9 sum=20, /3=6.667, sqrt~2.581
     expect(computeJitterMs([2, 4, 6, 8])).toBeCloseTo(2.581, 2);
+  });
+});
+
+describe("jitterMeasurement", () => {
+  const m = (id: string, value: number, confidence: "high" | "medium" | "low" = "high") => ({
+    id,
+    name: "latency_ms",
+    value,
+    unit: "ms" as const,
+    provenance: { kind: "measured" as const, method: "timestamp", confidence }
+  });
+
+  it("is low-confidence when built from fewer than 2 samples, even if the sample itself is high-confidence", () => {
+    const jitter = jitterMeasurement([m("a", 10, "high")]);
+    expect(jitter.provenance.confidence).toBe("low");
+  });
+
+  it("is high-confidence with >= 2 samples regardless of each sample's own confidence (statistical basis, not propagated)", () => {
+    const jitter = jitterMeasurement([m("a", 2, "low"), m("b", 8, "low")]);
+    expect(jitter.provenance.confidence).toBe("high");
+    expect(jitter.provenance.sourceIds).toEqual(["a", "b"]);
   });
 });
 

@@ -1,3 +1,4 @@
+import { measuredProvenance } from "../model/provenance.js";
 import type { Measurement } from "../model/types.js";
 import { nextId } from "./ids.js";
 
@@ -18,7 +19,7 @@ export class BufferTracker {
       name: "buffer_percent",
       value: this.levelPercent,
       unit: "percent",
-      provenance: { kind: "measured", method: "counter", confidence: "high" }
+      provenance: measuredProvenance("counter")
     };
   }
 }

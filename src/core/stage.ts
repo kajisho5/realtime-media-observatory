@@ -8,6 +8,7 @@
  */
 import { diffMs } from "../clock/compare.js";
 import type { ClockOffset, Timestamp } from "../clock/types.js";
+import { deriveProvenance, measuredProvenance } from "../model/provenance.js";
 import type { Measurement } from "../model/types.js";
 import { nextId } from "./ids.js";
 
@@ -46,7 +47,7 @@ export class StageRecorder {
       name: "latency_ms",
       value: latencyMs,
       unit: "ms",
-      provenance: { kind: "measured", method: "timestamp", confidence: "high" },
+      provenance: measuredProvenance("timestamp"),
       timestamp: ts
     };
   }
@@ -57,28 +58,19 @@ export class StageRecorder {
   }
 }
 
-/** Sums a set of stage latency measurements into a single `total_latency_ms` derived Measurement. */
+/**
+ * Sums a set of stage latency measurements into a single `total_latency_ms`
+ * derived Measurement. Confidence is bounded by the least-confident stage
+ * (see src/model/provenance.ts) — a total built from one low-confidence
+ * stage is itself low-confidence, never silently upgraded.
+ */
 export function totalLatency(stageLatencies: readonly Measurement[]): Measurement {
   const value = stageLatencies.reduce((sum, m) => sum + m.value, 0);
-  const worstConfidence = worstOf(stageLatencies.map((m) => m.provenance.confidence));
   return {
     id: nextId("measurement"),
     name: "total_latency_ms",
     value,
     unit: "ms",
-    provenance: {
-      kind: "derived",
-      method: "timestamp",
-      confidence: worstConfidence,
-      sourceIds: stageLatencies.map((m) => m.id)
-    }
+    provenance: deriveProvenance("derived", "timestamp", stageLatencies)
   };
-}
-
-const CONFIDENCE_RANK: Record<"high" | "medium" | "low", number> = { high: 2, medium: 1, low: 0 };
-
-/** A derived measurement's confidence must never exceed the lowest confidence among its inputs. */
-export function worstOf(levels: readonly ("high" | "medium" | "low")[]): "high" | "medium" | "low" {
-  if (levels.length === 0) return "low";
-  return levels.reduce((worst, level) => (CONFIDENCE_RANK[level] < CONFIDENCE_RANK[worst] ? level : worst));
 }

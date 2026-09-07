@@ -53,10 +53,7 @@ export async function runPipelineToCMM(adapter: Adapter, pipelineName: string): 
 
   const latencies = [...stageLatencies.values()];
   const total = totalLatency(latencies);
-  const jitter = jitterMeasurement(
-    latencies.map((m) => m.value),
-    latencies.map((m) => m.id)
-  );
+  const jitter = jitterMeasurement(latencies);
 
   return {
     schemaVersion: "0.1.0",
