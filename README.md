@@ -75,13 +75,23 @@ part of P1:
   calibration against the Synthetic Harness; see
   [`docs/architecture/calibration.md`](docs/architecture/calibration.md)
   for the method, its limits, and current results.
+- **Pipeline Graph Model** (`src/graph`) — represents a pipeline's stages
+  as a graph with query helpers (`totalLatencyMs()`,
+  `latencyContributions()`); currently builds a linear chain from the
+  Common Measurement Model's ordered stage list.
+- **Reporting: JSON Lines + WebSocket** (`src/reporting`) — `realtime-observe
+  stream` emits NDJSON to stdout, `realtime-observe serve` broadcasts live
+  pipeline reports over WebSocket.
 
 Not yet implemented (tracked as GitHub issues): real Audio/OBS/VST3/AU/
-WebRTC adapters, hardware-backed calibration, dashboard, streaming/
-Prometheus/OpenTelemetry reporting. The Audio Adapter (#11) and Real
-Hardware Validation (#15) specifically require real audio/camera/display
-hardware to build and verify against, which this environment does not
-have — see the linked issues for what's needed to pick them up.
+WebRTC adapters, hardware-backed calibration, dashboard, Prometheus/
+OpenTelemetry reporting. The Audio Adapter (#11), OBS Adapter (#13),
+VST3/AU (#14), and Real Hardware Validation (#15) specifically require
+building against and verifying on a real audio interface, a running OBS
+instance, a DAW/VST3 toolchain, or real camera/display hardware — none of
+which this environment has. Rather than ship adapter code that has never
+been run against the real system it targets, those are left for an
+environment with the actual hardware/software — see the linked issues.
 
 ## Quickstart
 
@@ -92,6 +102,8 @@ npx realtime-observe run              # human-readable pipeline report
 npx realtime-observe run --json       # machine-readable, CMM-schema-valid JSON
 npx realtime-observe run --pipeline audio-round-trip
 npx realtime-observe list             # list available synthetic fixtures
+npx realtime-observe stream --interval-ms 500       # NDJSON to stdout, Ctrl+C to stop
+npx realtime-observe serve --port 8787              # WebSocket broadcast server, Ctrl+C to stop
 ```
 
 During development, skip the build step with:
