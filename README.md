@@ -44,54 +44,82 @@ for the full implementation plan (priorities P0-P3).
 
 ## Status
 
-Early stage. The current implementation covers the P0 foundation plus
-part of P1:
+Covers the P0 foundation, all of P1, and most of P2/P3 from the
+[issue roadmap](https://github.com/kajisho5/realtime-media-observatory/issues).
 
-- **Common Measurement Model** (`src/model`) — the canonical
-  pipeline/stage/measurement/provenance schema, with JSON Schema
-  validation.
-- **Clock/Timestamp Model** (`src/clock`) — explicit clock domains;
-  comparing timestamps across domains without an explicit offset throws.
-- **Instrumentation Core** (`src/core`) — stage start/end -> latency,
-  jitter, buffer state, drop/XRUN counters. No adapter-specific code.
-- **Adapter Interface** (`src/adapter`) — the formal contract every future
-  integration (Audio, OBS, VST3/AU, WebRTC, ...) must implement, plus a
-  reference `ExampleAdapter`.
-- **Synthetic Pipeline Test Harness** (`src/synthetic`) — deterministic,
-  hardware-free fixtures with known expected latency, used by CI.
-- **CLI** (`realtime-observe`) — runs a synthetic pipeline and prints a
-  pipeline-first report, human-readable or `--json`.
+**Model, Core, and clock (#1-#3, #9, #10)**
+
+- **Common Measurement Model** (`src/model`) — canonical pipeline/stage/
+  measurement/provenance schema, JSON Schema validation.
 - **Provenance & Confidence Taxonomy** (`src/model/provenance.ts`) — a
   derived measurement's confidence is bounded by its weakest input; see
   [`docs/architecture/provenance-confidence.md`](docs/architecture/provenance-confidence.md).
-- **Realtime Metrics Engine** (`src/core/rolling.ts`) — bounded rolling
-  windows for live latency/jitter, trailing drop/XRUN rate, and a
-  self-benchmark for the Core's own recording overhead
-  (`src/core/overhead.ts`).
+- **Clock/Timestamp Model** (`src/clock`) — explicit clock domains;
+  cross-domain comparison without an explicit offset throws.
 - **Clock Drift Detection** (`src/clock/drift.ts`) — least-squares
-  offset/drift-rate estimation from paired timestamp samples, with a
-  documented confidence rule.
+  offset/drift-rate estimation with a documented confidence rule.
+- **Instrumentation Core** (`src/core`) — stage timing, jitter, buffer
+  state, drop/XRUN counters, bounded rolling windows for live metrics
+  (`rolling.ts`), a self-benchmark for the Core's own overhead
+  (`overhead.ts`). No adapter-specific code — enforced by `npm run
+  check:core-purity` in CI.
+
+**Adapters (#4, #5, #11-#14, #20)**
+
+- **Adapter Interface** (`src/adapter/types.ts`) — the formal contract,
+  plus a reference `ExampleAdapter`.
+- **Synthetic Pipeline** (`src/synthetic`) — deterministic, hardware-free
+  fixtures with known expected latency, used by CI.
+- **Network Adapter** (`src/adapter/networkAdapter.ts`) — real TCP
+  connect-RTT measurement against any reachable host. Verified against a
+  real external host (`realtime-observe probe-network`).
+- **OBS Adapter** (`src/adapter/obsAdapter.ts`) — obs-websocket v5
+  protocol client (Hello/Identify/Identified handshake, `GetStats`
+  polling). Protocol-tested against a mock server; **not yet verified
+  against a real OBS Studio instance** (needs a desktop GUI environment
+  this sandbox doesn't have — see issue #13).
+- **VST3/AU local reporting protocol** (`src/adapter/vstAdapter.ts`,
+  [`docs/architecture/vst-au-reporting-protocol.md`](docs/architecture/vst-au-reporting-protocol.md))
+  — the Node-side listener for the wire protocol a native plugin would
+  speak, tested with a real TCP client. **The native VST3/AU plugin
+  itself is not implemented** — that needs a C++/VST3 SDK/DAW build this
+  environment doesn't have (issue #14).
+- **Audio Adapter (#11)** — not implemented. This container has no ALSA
+  devices at all (checked directly), so there's no real hardware to build
+  or verify a platform audio backend against.
+
+**Reporting, graph, and dashboard (#16-#18, #21)**
+
+- **Pipeline Graph Model** (`src/graph`) — `totalLatencyMs()` /
+  `latencyContributions()` query helpers over a pipeline's stages.
+- **Reporting** (`src/reporting`) — JSON Lines (`stream`), WebSocket
+  broadcast (`serve`), Prometheus `/metrics` (`metrics`), and
+  OpenTelemetry trace export (`otel`).
+- **Dashboard** (`dashboard/`, served by `realtime-observe dashboard`) —
+  the pipeline-first web UI from the architecture spec: total latency,
+  stage chain, jitter/drops/XRUN/clock-drift, measurement method and
+  confidence. Verified end-to-end with a real headless-browser session
+  against a running `serve` instance.
+
+**Calibration and validation (#12, #15)**
+
 - **Measurement Calibration** (`src/calibration`) — known-delay reference
   calibration against the Synthetic Harness; see
-  [`docs/architecture/calibration.md`](docs/architecture/calibration.md)
-  for the method, its limits, and current results.
-- **Pipeline Graph Model** (`src/graph`) — represents a pipeline's stages
-  as a graph with query helpers (`totalLatencyMs()`,
-  `latencyContributions()`); currently builds a linear chain from the
-  Common Measurement Model's ordered stage list.
-- **Reporting: JSON Lines + WebSocket** (`src/reporting`) — `realtime-observe
-  stream` emits NDJSON to stdout, `realtime-observe serve` broadcasts live
-  pipeline reports over WebSocket.
+  [`docs/architecture/calibration.md`](docs/architecture/calibration.md).
+- **Real Hardware Validation** — a documented procedure/template
+  ([`docs/architecture/real-hardware-validation.md`](docs/architecture/real-hardware-validation.md)),
+  **not a completed run** — this environment has no audio interface,
+  camera, or display to run it against (issue #15).
 
-Not yet implemented (tracked as GitHub issues): real Audio/OBS/VST3/AU/
-WebRTC adapters, hardware-backed calibration, dashboard, Prometheus/
-OpenTelemetry reporting. The Audio Adapter (#11), OBS Adapter (#13),
-VST3/AU (#14), and Real Hardware Validation (#15) specifically require
-building against and verifying on a real audio interface, a running OBS
-instance, a DAW/VST3 toolchain, or real camera/display hardware — none of
-which this environment has. Rather than ship adapter code that has never
-been run against the real system it targets, those are left for an
-environment with the actual hardware/software — see the linked issues.
+**Not implemented**: a real Audio Adapter, a native VST3/AU plugin
+binary, WebRTC adapter (#19), and end-to-end verification of the OBS
+Adapter against real OBS. Each needs an environment with the actual
+hardware/software (a real audio interface, a DAW + C++/VST3 toolchain, a
+browser doing real peer connections, or a running OBS Studio instance) to
+build and verify against — see the linked issues for what's needed to
+pick them up. This project would rather leave something honestly
+unstarted than ship adapter/protocol code that has never run against the
+real system it targets.
 
 ## Quickstart
 
@@ -104,6 +132,12 @@ npx realtime-observe run --pipeline audio-round-trip
 npx realtime-observe list             # list available synthetic fixtures
 npx realtime-observe stream --interval-ms 500       # NDJSON to stdout, Ctrl+C to stop
 npx realtime-observe serve --port 8787              # WebSocket broadcast server, Ctrl+C to stop
+npx realtime-observe dashboard --port 8080          # web dashboard + WebSocket server, Ctrl+C to stop
+npx realtime-observe metrics --port 9464            # Prometheus /metrics endpoint, Ctrl+C to stop
+npx realtime-observe otel                           # export one pipeline run as an OTel trace to the console
+npx realtime-observe probe-network --host example.com --port 443   # real TCP RTT to a real host
+npx realtime-observe obs --url ws://localhost:4455  # connect to a running OBS instance (obs-websocket v5)
+npx realtime-observe vst-listen --port 9400          # wait for one VST3/AU plugin report (see scripts/demo-vst-client.mjs)
 ```
 
 During development, skip the build step with:
@@ -147,13 +181,18 @@ suite on every push/PR.
 
 ```
 src/
-  model/       Common Measurement Model: types, JSON Schema, validation
-  clock/       Clock domains, ClockOffset/drift, guarded cross-domain diff
-  core/        Instrumentation Core: stage timing, jitter, buffer, counters
-  adapter/     Adapter interface + reference ExampleAdapter
-  synthetic/   Deterministic test fixtures + the CLI's pipeline runner
-  cli/         `realtime-observe` entry point
+  model/        Common Measurement Model: types, JSON Schema, validation, provenance
+  clock/        Clock domains, ClockOffset/drift, guarded cross-domain diff, drift estimation
+  core/         Instrumentation Core: stage timing, jitter, buffer, counters, rolling metrics, overhead benchmark
+  adapter/      Adapter interface, ExampleAdapter, Network/OBS/VST adapters
+  synthetic/    Deterministic test fixtures + the pipeline runner
+  calibration/  Known-delay reference calibration
+  graph/        Pipeline Graph Model
+  reporting/    JSON Lines, WebSocket, Prometheus, OpenTelemetry
+  cli/          `realtime-observe` entry point + dashboard static file server
+dashboard/          Static pipeline-first web dashboard (served by `realtime-observe dashboard`)
 docs/architecture/  Architecture decision records and model docs
+scripts/            check-core-purity.mjs (CI), demo-vst-client.mjs (manual testing)
 test/               vitest test suite (one file per component above)
 ```
 

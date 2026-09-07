@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Realtime Media Observatory</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="frame">
+  <header class="topbar">
+    <div class="title">REALTIME MEDIA OBSERVATORY</div>
+    <div class="status">
+      <span id="live-dot" class="dot"></span>
+      <span id="live-label">CONNECTING</span>
+      <span id="pipeline-name" class="pipeline-name"></span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-value" id="total-latency">-- ms</div>
+    <div class="hero-label">TOTAL LATENCY</div>
+    <div class="hero-sub">
+      <span id="jitter-inline">±-- ms JITTER</span>
+      <span id="drops-inline">-- DROPS</span>
+    </div>
+  </section>
+
+  <section class="pipeline" id="pipeline-row" aria-label="Pipeline stages"></section>
+
+  <section class="metrics-row">
+    <div class="metric">
+      <div class="metric-label">BUFFER</div>
+      <div class="metric-value" id="metric-buffer">--</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">JITTER</div>
+      <div class="metric-value" id="metric-jitter">--</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">XRUN</div>
+      <div class="metric-value" id="metric-xrun">--</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">CLOCK DRIFT</div>
+      <div class="metric-value" id="metric-drift">--</div>
+    </div>
+  </section>
+
+  <footer class="provenance">
+    <span id="prov-method">Measurement: --</span>
+    <span id="prov-confidence" class="confidence">Confidence: --</span>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

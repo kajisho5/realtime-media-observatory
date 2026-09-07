@@ -1,0 +1,185 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0d10;
+  --panel: #12151a;
+  --border: #23272e;
+  --fg: #e6e9ee;
+  --fg-dim: #8a919c;
+  --accent: #3ddc97;
+  --accent-dim: #1f7a55;
+  --warn: #e8b339;
+  --bad: #e2534d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.frame {
+  width: 100%;
+  max-width: 880px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  font-weight: 700;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg-dim);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+  display: inline-block;
+}
+
+.dot.live {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.pipeline-name {
+  color: var(--fg);
+}
+
+.hero {
+  text-align: center;
+  padding: 32px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero-value {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hero-label {
+  margin-top: 6px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--fg-dim);
+}
+
+.hero-sub {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+.pipeline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  min-height: 60px;
+}
+
+.stage-box {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.stage-name {
+  color: var(--fg);
+}
+
+.stage-edge {
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.stage-edge::before,
+.stage-edge::after {
+  content: "──";
+  color: var(--fg-dim);
+}
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.metric {
+  padding: 16px 20px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+
+.metric:last-child {
+  border-right: none;
+}
+
+.metric-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--fg-dim);
+}
+
+.metric-value {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.provenance {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 20px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.confidence.confidence-high {
+  color: var(--accent);
+}
+
+.confidence.confidence-medium {
+  color: var(--warn);
+}
+
+.confidence.confidence-low {
+  color: var(--bad);
+}
