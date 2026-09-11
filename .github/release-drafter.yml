@@ -1,0 +1,100 @@
+# Config for release-drafter/release-drafter.
+# Used two ways in this repo:
+#   1. .github/workflows/pr-labeler.yml runs this in dry-run mode purely for
+#      the `autolabeler` side effect (labels PRs on open/reopen/synchronize).
+#   2. .github/workflows/release.yml runs this in dry-run mode purely to read
+#      the `resolved_version` output (computed from merged-PR labels via
+#      version-resolver below); it does NOT use release-drafter to create or
+#      manage the actual GitHub Release — release.yml does that itself so the
+#      changelog body can be built safely from `git log` instead of
+#      interpolating PR titles into a workflow run: block.
+
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+
+# Label -> semver bump. A merged PR with none of these labels falls back to
+# `default: patch` below — this is what "labels unlabeled = patch" means.
+version-resolver:
+  major:
+    labels:
+      - "major"
+      - "breaking"
+  minor:
+    labels:
+      - "minor"
+      - "feature"
+      - "enhancement"
+  patch:
+    labels:
+      - "patch"
+      - "fix"
+      - "bug"
+      - "chore"
+      - "dependencies"
+  default: patch
+
+# Applied automatically to PRs by pr-labeler.yml, based on branch name or PR
+# title. There is no established branch/title convention in this repo yet
+# (the only PR merged so far, #22, predates this automation and used neither
+# Conventional Commits nor a labeled branch prefix), so these patterns follow
+# the common `feat/`, `fix/`, `type: subject` conventions as a reasonable
+# default. Adjust here if the team settles on a different convention.
+autolabeler:
+  - label: "major"
+    title:
+      - "/^\\w+(\\(.+\\))?!:/" # e.g. "feat!: ..." (Conventional Commits breaking-change marker)
+      - "/BREAKING CHANGE/"
+  - label: "feature"
+    branch:
+      - "/^feat(ure)?\\/.+/"
+    title:
+      - "/^feat(\\(.+\\))?:/i"
+  - label: "fix"
+    branch:
+      - "/^fix\\/.+/"
+    title:
+      - "/^fix(\\(.+\\))?:/i"
+  - label: "dependencies"
+    files:
+      - "package.json"
+      - "package-lock.json"
+    title:
+      - "/^(chore|build)\\(deps\\):/i"
+  - label: "chore"
+    branch:
+      - "/^chore\\/.+/"
+    title:
+      - "/^chore(\\(.+\\))?:/i"
+    files:
+      - "*.md"
+      - ".github/**"
+
+categories:
+  - title: "Breaking Changes"
+    labels:
+      - "major"
+      - "breaking"
+  - title: "Features"
+    labels:
+      - "minor"
+      - "feature"
+      - "enhancement"
+  - title: "Bug Fixes"
+    labels:
+      - "patch"
+      - "fix"
+      - "bug"
+  - title: "Dependencies"
+    labels:
+      - "dependencies"
+  - title: "Maintenance"
+    labels:
+      - "chore"
+
+exclude-labels:
+  - "skip-changelog"
+
+template: |
+  ## What's Changed
+
+  $CHANGES
