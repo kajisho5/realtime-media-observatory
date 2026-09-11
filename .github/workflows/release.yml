@@ -1,0 +1,146 @@
+name: Release
+
+# Deliberately a single job triggered on every push to main — NOT split into
+# a separate tag-triggered workflow. Any tag/commit this job pushes uses the
+# default GITHUB_TOKEN, and GitHub does not trigger new workflow runs from
+# events produced by GITHUB_TOKEN. A `push: tags:` workflow watching for
+# that tag would therefore never fire. Doing version bump, changelog, tag,
+# GitHub Release, and npm publish all in this one job sidesteps that.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  # release-drafter reads merged-PR metadata (titles, labels) to resolve
+  # the next version even in dry-run mode.
+  pull-requests: read
+
+# Only one release should ever run at a time, and a newer push supersedes
+# an older one rather than racing it.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history is needed: `git log <tag>..HEAD` (changelog) and
+          # `git tag --list` (version decision) both need it.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      # Same checks CI runs — a release is never cut from code that doesn't
+      # pass its own test suite.
+      - run: npm ci
+      - run: npm run check:core-purity
+      - run: npm run build
+      - run: npm test
+
+      - name: Resolve next version via release-drafter (dry run)
+        id: drafter
+        uses: release-drafter/release-drafter@v7
+        with:
+          # dry-run: compute outputs (resolved_version) without creating or
+          # touching any GitHub Release. This job creates the actual
+          # Release itself, later, from a changelog built via `git log` —
+          # see the note on script-injection safety further down.
+          dry-run: true
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide release mode and next version
+        id: decide
+        env:
+          # Routed through env, not interpolated directly into the script
+          # text, as a blanket policy for every ${{ }} value this workflow
+          # touches (see the note on the changelog step below for why).
+          RESOLVED_VERSION_FROM_DRAFTER: ${{ steps.drafter.outputs.resolved_version }}
+        run: |
+          set -euo pipefail
+          ./scripts/release/decide-version.sh | tee -a "$GITHUB_OUTPUT"
+
+      - name: Generate changelog entry
+        if: steps.decide.outputs.mode != 'skip'
+        env:
+          NEXT_VERSION: ${{ steps.decide.outputs.next_version }}
+        # generate-changelog.sh reads commit subjects via `git log`, at run
+        # time, into a file — it never receives PR/commit titles through a
+        # ${{ }} expression spliced into this (or any) run: block. That's
+        # the known GitHub Actions script-injection pattern (untrusted text
+        # from ${{ github.event.pull_request.title }} or similar, expanded
+        # directly into shell source before bash ever parses it): unlike an
+        # env var reference (`"$NEXT_VERSION"`, safe — the shell only ever
+        # sees a quoted string, not injected syntax), a bare ${{ }} in a
+        # run: block is substituted into the script's *text* before the
+        # shell runs it, so attacker-controlled content can break out of
+        # quoting and execute arbitrary commands. Reading the same content
+        # via `git log` sidesteps this class of bug entirely, because it
+        # never passes through that substitution step.
+        run: ./scripts/release/generate-changelog.sh "$NEXT_VERSION" /tmp/release-notes.md
+
+      - name: Bump package.json version (auto mode only)
+        if: steps.decide.outputs.mode == 'auto'
+        env:
+          NEXT_VERSION: ${{ steps.decide.outputs.next_version }}
+        run: npm version "$NEXT_VERSION" --no-git-tag-version --allow-same-version
+
+      - name: Commit release artifacts and tag
+        if: steps.decide.outputs.mode != 'skip'
+        env:
+          NEXT_VERSION: ${{ steps.decide.outputs.next_version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md
+          if git diff --staged --quiet; then
+            echo "Nothing to commit; tagging current HEAD as v${NEXT_VERSION}."
+          else
+            git commit -m "chore(release): v${NEXT_VERSION}"
+          fi
+          git tag "v${NEXT_VERSION}"
+          git push origin HEAD:main
+          git push origin "v${NEXT_VERSION}"
+
+      - name: Create GitHub Release
+        if: steps.decide.outputs.mode != 'skip'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_VERSION: ${{ steps.decide.outputs.next_version }}
+        run: |
+          set -euo pipefail
+          gh release create "v${NEXT_VERSION}" \
+            --title "v${NEXT_VERSION}" \
+            --notes-file /tmp/release-notes.md
+
+      - name: Check for an NPM_TOKEN secret
+        # The `secrets` context cannot be referenced directly in a step
+        # `if:` expression (GitHub Actions rejects the whole workflow file
+        # at parse time if you try — confirmed by actually running this
+        # workflow, not just by reading the docs). Route it through env
+        # instead, same as everywhere else in this file, and record
+        # presence/absence as a step output the next step's `if:` can use.
+        id: npm_token_check
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: echo "present=$([ -n "$NPM_TOKEN" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm
+        if: steps.decide.outputs.mode != 'skip' && steps.npm_token_check.outputs.present == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # No NPM_TOKEN secret configured yet -> the check above resolves
+        # to "false" and this step is skipped; the tag and GitHub Release
+        # above still go through. Add an NPM_TOKEN repository secret to
+        # turn this on.
+        run: npm publish --access public

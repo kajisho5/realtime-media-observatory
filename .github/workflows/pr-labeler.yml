@@ -1,0 +1,29 @@
+name: PR Labeler
+
+# pull_request_target (not pull_request) so labeling also works on PRs from
+# forks: pull_request_target runs with the base repo's token/permissions
+# rather than the fork's. This workflow never checks out or executes the
+# PR's head code — release-drafter's autolabeler only reads PR metadata
+# (title, branch name, changed file paths) via the GitHub API — so this is
+# the safe, standard usage pattern for pull_request_target.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  autolabel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Autolabel via release-drafter
+        uses: release-drafter/release-drafter@v7
+        with:
+          # dry-run: only compute/label; never create or touch a GitHub
+          # Release from this workflow (release.yml owns the real release).
+          dry-run: true
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
