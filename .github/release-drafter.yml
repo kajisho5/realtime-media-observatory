@@ -39,11 +39,24 @@ version-resolver:
 # Conventional Commits nor a labeled branch prefix), so these patterns follow
 # the common `feat/`, `fix/`, `type: subject` conventions as a reasonable
 # default. Adjust here if the team settles on a different convention.
+#
+# Deliberately NO autolabeler rule for "major"/"breaking": pattern-matching
+# free text (a Conventional-Commits "!:" title prefix, or the literal words
+# "BREAKING CHANGE" anywhere in the title or body) to auto-apply a
+# major-version label is unsafe. A PR that merely describes or discusses a
+# breaking change -- e.g. a bug-fix PR whose description says "works around
+# a BREAKING CHANGE in an upstream dependency" -- would get auto-labeled
+# "major" with zero human intent behind it, and if merged while that label
+# stood, release.yml would cut a real, unintended major version bump. This
+# happened for real in a sibling repo (color-grading-skill): a PR body that
+# used the phrase "BREAKING CHANGE" as prose, not as a release marker, was
+# auto-labeled major by exactly this kind of rule. No PR was actually
+# merged with the label attached that time, but it was one merge away from
+# shipping an unintended vX.0.0. The "major"/"breaking" labels in
+# version-resolver above still work -- they just require a human to apply
+# them on purpose, every time; there is no text pattern anywhere in this
+# file that can attach either label on its own.
 autolabeler:
-  - label: "major"
-    title:
-      - "/^\\w+(\\(.+\\))?!:/" # e.g. "feat!: ..." (Conventional Commits breaking-change marker)
-      - "/BREAKING CHANGE/"
   - label: "feature"
     branch:
       - "/^feat(ure)?\\/.+/"
