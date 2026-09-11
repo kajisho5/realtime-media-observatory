@@ -123,11 +123,24 @@ jobs:
             --title "v${NEXT_VERSION}" \
             --notes-file /tmp/release-notes.md
 
+      - name: Check for an NPM_TOKEN secret
+        # The `secrets` context cannot be referenced directly in a step
+        # `if:` expression (GitHub Actions rejects the whole workflow file
+        # at parse time if you try — confirmed by actually running this
+        # workflow, not just by reading the docs). Route it through env
+        # instead, same as everywhere else in this file, and record
+        # presence/absence as a step output the next step's `if:` can use.
+        id: npm_token_check
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: echo "present=$([ -n "$NPM_TOKEN" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - name: Publish to npm
-        if: steps.decide.outputs.mode != 'skip' && secrets.NPM_TOKEN != ''
+        if: steps.decide.outputs.mode != 'skip' && steps.npm_token_check.outputs.present == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        # No NPM_TOKEN secret configured yet -> this step's `if:` is false
-        # and it's skipped; the tag and GitHub Release above still go
-        # through. Add an NPM_TOKEN repository secret to turn this on.
+        # No NPM_TOKEN secret configured yet -> the check above resolves
+        # to "false" and this step is skipped; the tag and GitHub Release
+        # above still go through. Add an NPM_TOKEN repository secret to
+        # turn this on.
         run: npm publish --access public
